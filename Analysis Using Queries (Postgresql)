@@ -1,0 +1,203 @@
+-- ============================================================
+-- Zomato Customer Analysis — PostgreSQL Analytical Queries
+-- 20 Queries (Basic → Advanced)
+-- ============================================================
+
+-- ---------------------------------------------------------------
+-- BASIC QUERIES
+-- ---------------------------------------------------------------
+
+-- Q1. List all unique cuisines available across all restaurants.
+SELECT DISTINCT cuisine 
+FROM restaurants;
+
+
+-- Q2. Find all active customers who are between 20 and 30 years old (inclusive).
+SELECT * 
+FROM customers 
+WHERE active_status = 'Active' 
+  AND age BETWEEN 20 AND 30;
+
+
+-- Q3. Display the top 5 highest-spending orders (final_amount) from the orders table.
+SELECT * 
+FROM orders 
+ORDER BY final_amount DESC 
+LIMIT 5;
+
+
+-- Q4. Retrieve all orders where the order status is 'Cancelled' OR the customer rating is less than 3.0.
+SELECT * 
+FROM orders 
+WHERE status = 'Cancelled' 
+   OR rating < 3.0;
+
+
+-- Q5. List all open restaurants whose name contains the word 'Biryani' (case-insensitive).
+SELECT * 
+FROM restaurants 
+WHERE is_open = TRUE 
+  AND name ILIKE '%Biryani%';
+
+
+-- Q6. Find all rows from the orders table where the feedback rating is missing (NULL).
+SELECT * 
+FROM orders 
+WHERE rating IS NULL;
+
+
+-- ---------------------------------------------------------------
+-- AGGREGATE & GROUP BY QUERIES
+-- ---------------------------------------------------------------
+
+-- Q7. Find the total revenue (sum of final_amount) generated from successfully 'Delivered' orders.
+SELECT SUM(final_amount) AS total_revenue 
+FROM orders 
+WHERE status = 'Delivered';
+
+
+-- Q8. Count how many orders were placed using each unique payment_method.
+SELECT payment_method, COUNT(*) AS total_orders 
+FROM orders 
+GROUP BY payment_method;
+
+
+-- Q9. Find cities that have more than 10 restaurants, sorted by restaurant count descending.
+SELECT city, COUNT(*) AS restaurant_count 
+FROM restaurants 
+GROUP BY city 
+HAVING COUNT(*) > 10 
+ORDER BY restaurant_count DESC;
+
+
+-- Q10. Find the total tip amount received by each delivery partner company.
+SELECT delivery_partner_name, SUM(tip_amount) AS total_tips 
+FROM deliveries 
+GROUP BY delivery_partner_name 
+ORDER BY total_tips DESC;
+
+
+-- ---------------------------------------------------------------
+-- SUBQUERIES
+-- ---------------------------------------------------------------
+
+-- Q11. Find all orders whose final_amount is greater than the overall average order amount.
+SELECT order_id, final_amount 
+FROM orders 
+WHERE final_amount > (SELECT AVG(final_amount) FROM orders);
+
+
+-- ---------------------------------------------------------------
+-- JOIN QUERIES
+-- ---------------------------------------------------------------
+
+-- Q12. Display the order ID, order date, and delivery partner name for deliveries made using a 'Bike'.
+SELECT o.order_id, o.order_date, d.delivery_partner_name 
+FROM orders o
+JOIN deliveries d ON o.order_id = d.order_id
+WHERE d.vehicle_type = 'Bike';
+
+
+-- Q13. Find the names of customers who have ordered from a restaurant located outside of their own city.
+SELECT DISTINCT c.name AS customer_name, c.city AS customer_city, r.city AS restaurant_city
+FROM customers c
+JOIN orders o ON c.customer_id = o.customer_id
+JOIN restaurants r ON o.restaurant_id = r.restaurant_id
+WHERE c.city <> r.city;
+
+
+-- ---------------------------------------------------------------
+-- CTEs & WINDOW FUNCTIONS
+-- ---------------------------------------------------------------
+
+-- Q14. Find the top 3 highest-spending customers (based on total final_amount) in each city.
+WITH customer_spending AS (
+    SELECT c.customer_id, c.name, c.city, SUM(o.final_amount) AS total_spent
+    FROM customers c
+    JOIN orders o ON c.customer_id = o.customer_id
+    GROUP BY c.customer_id, c.name, c.city
+),
+ranked_spending AS (
+    SELECT *,
+           ROW_NUMBER() OVER (PARTITION BY city ORDER BY total_spent DESC) AS rn
+    FROM customer_spending
+)
+SELECT customer_id, name, city, total_spent 
+FROM ranked_spending 
+WHERE rn <= 3;
+
+
+-- Q15. For each order, display its amount along with the historical running total for that customer.
+SELECT customer_id, order_id, order_date, final_amount,
+       SUM(final_amount) OVER (PARTITION BY customer_id ORDER BY order_date::TIMESTAMP) AS running_total
+FROM orders;
+
+
+-- Q16. Find the top-rated restaurant in each city using RANK(). Show tied restaurants.
+WITH ranked_restaurants AS (
+    SELECT name, city, rating,
+           RANK() OVER (PARTITION BY city ORDER BY rating DESC) AS rank_num
+    FROM restaurants
+)
+SELECT name, city, rating 
+FROM ranked_restaurants 
+WHERE rank_num = 1;
+
+
+-- Q17. For each restaurant, find the % contribution of each order's final_amount to that restaurant's total revenue.
+SELECT restaurant_id, order_id, final_amount,
+       ROUND(
+           (final_amount / SUM(final_amount) OVER (PARTITION BY restaurant_id)) * 100, 
+           2
+       ) AS pct_contribution
+FROM orders
+WHERE status = 'Delivered';
+
+
+-- Q18. Categorize customers into age tiers and find unique customer count and avg order value per tier.
+-- Tiers: 'Young' (< 30), 'Middle-aged' (30–50), 'Senior' (> 50)
+WITH age_groups AS (
+    SELECT o.final_amount,
+           CASE 
+               WHEN c.age < 30 THEN 'Young'
+               WHEN c.age BETWEEN 30 AND 50 THEN 'Middle-aged'
+               ELSE 'Senior'
+           END AS age_tier
+    FROM customers c
+    JOIN orders o ON c.customer_id = o.customer_id
+)
+SELECT age_tier, 
+       COUNT(*) AS total_orders_placed,
+       ROUND(AVG(final_amount), 2) AS avg_order_value
+FROM age_groups
+GROUP BY age_tier;
+
+
+-- Q19. Calculate the average delivery speed (km/h) of each delivery partner for all delivered orders.
+WITH delivery_durations AS (
+    SELECT 
+        delivery_partner_name,
+        distance_km,
+        EXTRACT(EPOCH FROM (delivered_time::TIMESTAMP - pickup_time::TIMESTAMP)) / 3600.0 AS duration_hours
+    FROM deliveries
+    WHERE delivery_status = 'Delivered'
+)
+SELECT 
+    delivery_partner_name,
+    ROUND(AVG(distance_km / NULLIF(duration_hours, 0)), 2) AS avg_speed_kmh
+FROM delivery_durations
+GROUP BY delivery_partner_name
+ORDER BY avg_speed_kmh DESC;
+
+
+-- Q20. Identify 'Churned Customers': joined before 2025, high loyalty points (> 2000), 
+--      but no orders placed in 2026.
+SELECT customer_id, name, loyalty_points, joined_date 
+FROM customers 
+WHERE joined_date::DATE < '2025-01-01'
+  AND loyalty_points > 2000
+  AND customer_id NOT IN (
+      SELECT DISTINCT customer_id 
+      FROM orders 
+      WHERE EXTRACT(YEAR FROM order_date::TIMESTAMP) = 2026
+  );
