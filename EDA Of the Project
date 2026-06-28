@@ -1,0 +1,59 @@
+### Exploratory Data Analysis of Zomato Customer Analysis
+
+import pandas as pd
+
+customers   = pd.read_csv('data/customers.csv')
+orders      = pd.read_csv('data/orders.csv')
+restaurants = pd.read_csv('data/restaurants.csv')
+deliveries  = pd.read_csv('data/deliveries.csv')
+
+# Shape of each dataset
+print("Customers :", customers.shape)
+print("Orders    :", orders.shape)
+print("Restaurants:", restaurants.shape)
+print("Deliveries:", deliveries.shape)
+
+# Basic info & missing values
+customers.info()
+customers.isnull().sum()
+
+# Summary stats
+customers.describe()
+orders.describe()
+
+# Key value counts
+print(customers['city'].value_counts())
+print(customers['active_status'].value_counts())
+print(customers['gender'].value_counts())
+print(orders['status'].value_counts())
+print(orders['payment_method'].value_counts())
+print(restaurants['cuisine'].value_counts().head(5))
+print(deliveries['delivery_partner_name'].value_counts())
+
+# Visualisation
+import matplotlib.pyplot as plt
+import seaborn as sns
+
+fig, axes = plt.subplots(2, 3, figsize=(16, 8))
+
+sns.countplot(data=customers, x='city', ax=axes[0,0], color='crimson')
+axes[0,0].set_title('Customers by City')
+
+sns.countplot(data=customers, x='active_status', ax=axes[0,1], color='crimson')
+axes[0,1].set_title('Active vs Inactive')
+
+sns.histplot(data=customers, x='age', bins=15, ax=axes[0,2], color='crimson')
+axes[0,2].set_title('Age Distribution')
+
+sns.countplot(data=orders, x='status', ax=axes[1,0], color='crimson')
+axes[1,0].set_title('Order Status')
+
+sns.countplot(data=orders, x='payment_method', ax=axes[1,1], color='crimson')
+axes[1,1].set_title('Payment Method')
+axes[1,1].tick_params(axis='x', rotation=15)
+
+sns.histplot(data=orders, x='final_amount', bins=20, ax=axes[1,2], color='crimson')
+axes[1,2].set_title('Order Amount Distribution')
+
+plt.tight_layout()
+plt.show()
