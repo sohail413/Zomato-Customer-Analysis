@@ -133,9 +133,13 @@ An interactive dashboard was built in Power BI with filters for **Status**, **Ge
 
 ### Dashboard – Full View
 ![Dashboard Overview](dashboard/dashboard_overview.png)
+<img width="518" height="287" alt="Screenshot 2026-06-28 093304" src="https://github.com/user-attachments/assets/44a231a1-d79e-4af5-8dbd-ce49c165a89f" />
+
 
 ### Dashboard – Filtered: Male, Biryani preference, Hyderabad
 ![Dashboard Filtered](dashboard/dashboard_filtered.png)
+<img width="520" height="292" alt="Screenshot 2026-06-28 093404" src="https://github.com/user-attachments/assets/2cbc9a70-d9c4-4ea0-a216-a03102386e9a" />
+
 
 ### Visuals Included
 - **Loyalty Points Treemap** — by city
