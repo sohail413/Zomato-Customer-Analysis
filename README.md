@@ -195,15 +195,7 @@ jupyter notebook notebooks/zomato_eda.ipynb
 -- Connect to your PostgreSQL instance and import the CSVs as tables:
 -- customers, orders, restaurants, deliveries
 -- Then execute queries from sql/zomato_queries.sql
-```
 
----
-
-## 👤 Author
-
-**[Your Name]**  
-Data Analyst | Python • SQL • Power BI  
-[LinkedIn](#) · [GitHub](#)
 
 ---
 
